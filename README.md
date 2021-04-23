@@ -5,7 +5,7 @@
 - typeorm 处理数据库
 - mysql 持久化存储
 - redis 存储 token 以及离线消息队列(由于经过一段时间之后会自动断开，所以目前采用的方案是每次操作都新建一个连接实例，操作完成之后断开连接)
-- 配套前端代码[young-chat](../young-chat/README.md)
+- 配套前端代码[young-chat](https://gitee.com/BluseYoung-web/young-chat)
 
 ## 开发进度
 
