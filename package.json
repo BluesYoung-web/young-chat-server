@@ -1,0 +1,56 @@
+{
+  "name": "koa-server",
+  "version": "1.0.0",
+  "description": "聊天APP的后台程序",
+  "main": "main.ts",
+  "scripts": {
+    "dev": "nodemon --watch src -e ts,tsx --exec ts-node ./main.ts",
+    "build": "tsc",
+    "pre": "node ./dist/main.js"
+  },
+  "keywords": [
+    "koa",
+    "typeorm",
+    "typescript"
+  ],
+  "author": "BluesYoung-web",
+  "license": "MIT",
+  "dependencies": {
+    "@koa/cors": "^3.1.0",
+    "@koa/router": "^9.4.0",
+    "argon2": "^0.27.0",
+    "jsonwebtoken": "^8.5.1",
+    "koa": "^2.13.0",
+    "koa-bodyparser": "^4.3.0",
+    "koa-combine-routers": "^4.0.2",
+    "koa-helmet": "^5.2.0",
+    "koa-jwt": "^4.0.0",
+    "koa-static": "^5.0.0",
+    "md5": "^2.3.0",
+    "mysql": "^2.18.1",
+    "nodemailer": "^6.4.11",
+    "nodemon": "^2.0.4",
+    "redis": "^3.1.0",
+    "reflect-metadata": "^0.1.13",
+    "sha1": "^1.1.1",
+    "svg-captcha": "^1.4.0",
+    "ts-node": "^9.0.0",
+    "typeorm": "^0.2.32",
+    "ws": "^7.4.4"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^8.5.0",
+    "@types/koa": "^2.11.4",
+    "@types/koa-bodyparser": "^4.3.0",
+    "@types/koa-helmet": "^6.0.2",
+    "@types/koa-static": "^4.0.1",
+    "@types/koa__cors": "^3.0.1",
+    "@types/koa__router": "^8.0.2",
+    "@types/mysql": "^2.15.16",
+    "@types/node": "^14.14.14",
+    "@types/nodemailer": "^6.4.0",
+    "@types/redis": "^2.8.28",
+    "@types/ws": "^7.4.1",
+    "typescript": "^4.1.3"
+  }
+}
