@@ -1,0 +1,56 @@
+# docker-compose 配置文件
+version: '3.3'
+services:
+  mariadb:
+    image: jsurf/rpi-mariadb
+    ports: ['3306:3306']
+    volumes: 
+      - /home/pi/data-base/data:/var/lib/mysql
+      - /home/pi/data-base/initdb.d:/docker-entrypoint-initdb.d
+    environment: 
+      MYSQL_ROOT_PASSWORD: 'my-secret-pw'
+    restart: always
+    networks:
+      web-net:
+        ipv4_address: 172.18.0.4
+  redis:
+    image: redis
+    ports: ['6379:6379']
+    restart: always
+    networks:
+      web-net:
+        ipv4_address: 172.18.0.5
+  node-server:
+    image: node
+    # 外部：内部
+    ports: ['1443:1443']
+    volumes: 
+      - /home/pi/node-server:/home/node
+    restart: always
+    depends_on: 
+      - mariadb
+      - redis
+    networks:
+      web-net:
+        ipv4_address: 172.18.0.3
+    command: /bin/bash -c "cd /home/node && node main.js"
+  nginx-server:
+    image: nginx
+    ports: ['8080:80']
+    volumes:
+      - /home/pi/www/.nginx/nginx.conf:/etc/nginx/nginx.conf
+      - /home/pi/www:/etc/nginx/html
+    restart: always
+    depends_on: 
+      - node-server
+    networks:
+      web-net:
+        ipv4_address: 172.18.0.2
+
+networks: ##定义网络组
+  web-net: ## 网络组名称
+    driver: bridge ## 网络的模式
+    ipam: ## 配置网络
+      driver: default
+      config:
+        - subnet: 172.18.0.0/24

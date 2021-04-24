@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2020-09-23 09:37:03
- * @LastEditTime: 2021-04-08 15:42:42
+ * @LastEditTime: 2021-04-24 17:53:45
  * @Description: 记录日志的中间件
  */
 import { appendFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'fs';
@@ -31,7 +31,7 @@ export default () => async (ctx: Context, next: Next) => {
   await next();
   const useTime = Date.now() - startTime;
   const logout = `${ctx.request.ip} -- ${requestTime} -- ${ctx.method} -- ${ctx.url} -- ${useTime}ms`;
-  const filename = resolve(logPath, requestTime.toLocaleDateString() + '.log');
+  const filename = resolve(logPath, requestTime.toLocaleDateString().replaceAll('/', '-') + '.log');
 
   
   const Files = readdirSync(logPath);
@@ -61,7 +61,7 @@ export const error = (err: Error) =>  {
     mkdirSync(logPath);
   }
 
-  const filename = resolve(logPath, requestTime.toLocaleDateString() + '.log');
+  const filename = resolve(logPath, requestTime.toLocaleDateString().replaceAll('/', '-') + '.log');
 
   const Files = readdirSync(logPath);
   for (const file of Files) {
