@@ -23,7 +23,7 @@ services:
   node-server:
     image: node
     # 外部：内部
-    ports: ['1443:1443']
+    ports: ['1443:1443', '9527:9527']
     volumes: 
       - /home/pi/node-server:/home/node
     restart: always
