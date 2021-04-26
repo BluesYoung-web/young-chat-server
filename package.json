@@ -4,7 +4,7 @@
   "description": "聊天APP的后台程序",
   "main": "main.ts",
   "scripts": {
-    "dev": "nodemon --watch src -e ts,tsx --exec ts-node ./main.ts",
+    "dev": "SET APP_ENV=dev &&nodemon --watch src -e ts,tsx --exec ts-node ./main.ts",
     "build": "tsc",
     "pre": "node ./dist/main.js"
   },
