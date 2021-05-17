@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2020-09-23 09:37:03
- * @LastEditTime: 2021-04-24 17:53:45
+ * @LastEditTime: 2021-05-17 09:28:48
  * @Description: 记录日志的中间件
  */
 import { appendFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'fs';
@@ -36,7 +36,7 @@ export default () => async (ctx: Context, next: Next) => {
   
   const Files = readdirSync(logPath);
   for (const file of Files) {
-    if (startTime - new Date(file.slice(0, 10)).getTime() > 1000 * 3600 * 24 * 7) {
+    if (startTime - new Date(file.split('.')[0]).getTime() > 1000 * 3600 * 24 * 7) {
       // 清除超过一周的日志
       unlinkSync(resolve(logPath, file));
     }
@@ -65,7 +65,7 @@ export const error = (err: Error) =>  {
 
   const Files = readdirSync(logPath);
   for (const file of Files) {
-    if (requestTime.getTime() - new Date(file.slice(0, 10)).getTime() > 1000 * 3600 * 24 * 7) {
+    if (requestTime.getTime() - new Date(file.split('.')[0]).getTime() > 1000 * 3600 * 24 * 7) {
       // 清除超过一周的日志
       unlinkSync(resolve(logPath, file));
     }
