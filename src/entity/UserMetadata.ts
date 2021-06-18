@@ -1,11 +1,12 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-14 10:39:07
- * @LastEditTime: 2021-04-14 12:57:09
+ * @LastEditTime: 2021-06-17 17:07:01
  * @Description: 用户相关的元数据
  */
 import { Entity, Column, JoinTable, ManyToMany, OneToMany, OneToOne, PrimaryGeneratedColumn, JoinColumn } from 'typeorm';
 import { Circle } from './Circles';
+import { Likes } from './Likes';
 import { User } from './User';
 
 @Entity()
@@ -34,4 +35,7 @@ export class UserMetaData {
 
   @OneToMany(() => Circle, circle => circle.user)
   circles: Circle[];
+
+  @OneToMany(() => Likes, like => like.user)
+  likes: Likes[];
 }

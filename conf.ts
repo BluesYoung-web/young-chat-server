@@ -1,16 +1,19 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-08 17:49:14
- * @LastEditTime: 2021-04-26 15:38:26
+ * @LastEditTime: 2021-06-18 15:34:55
  * @Description: 配置文件
  */
-import { basename, resolve } from 'path';
+import { resolve } from 'path';
 
 enum Structor {
   '签名过期' = '100-0-0',
   '异地登录' = '100-0-1',
 
-  '获取当前用户信息' = '200-0-0'
+  '获取当前用户信息' = '200-0-0',
+  '修改当前用户信息' = '200-0-1',
+
+  '无对应的服务' = '500-0-0'
 }
 
 const conf = (() => {

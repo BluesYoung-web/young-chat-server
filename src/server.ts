@@ -1,8 +1,7 @@
-import { myredis } from './database/conn';
 /*
  * @Author: zhangyang
  * @Date: 2020-09-23 08:58:47
- * @LastEditTime: 2021-04-14 09:18:49
+ * @LastEditTime: 2021-06-17 17:52:09
  * @Description: http 服务器启动配置
  */
 import Koa from 'koa';
@@ -14,6 +13,7 @@ import path from 'path';
 import router from './routers';
 import WebSocket, { Server as WebSocketServer } from 'ws';
 import conf from '../conf';
+import { myredis } from './database/conn';
 
 import logger from './middleware/logger';
 import { MySocket } from './model/socket';
@@ -73,7 +73,7 @@ const tokenCheck = async (sign: string, uid: string, conn: WebSocket) => {
         } catch (error) {
           null;
         }
-        socket.msgProcess(str);
+        socket.msgProcess(str as any);
       });
 
       conn.on('close', (code, reason) => {

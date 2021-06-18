@@ -1,16 +1,13 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-08 14:10:59
- * @LastEditTime: 2021-04-14 09:59:48
+ * @LastEditTime: 2021-06-18 15:33:43
  * @Description: 
  */
 import { Context } from 'koa';
-import WebSocket from 'ws';
-
 
 type RespondType = 'success' | 'fail' | 'unknown error';
 export class BaseController {
-  protected conn?: WebSocket
   respond(ctx: Context, data: any, type: RespondType) {
     switch (type) {
       case 'success':
@@ -27,8 +24,8 @@ export class BaseController {
         break;
     }
   }
+};
 
-  push(cbk: string, data: any, extra = null) {
-    this?.conn?.send(JSON.stringify({ cbk, data, extra }));
-  }
-}
+export const pushFormat = (cbk: string, data: any, extra = null) => {
+  return JSON.stringify({ cbk, data, extra });
+};

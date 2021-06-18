@@ -1,22 +1,32 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-09 14:10:41
- * @LastEditTime: 2021-05-17 17:33:53
+ * @LastEditTime: 2021-06-18 17:50:30
  * @Description: 管理 Websocket 消息
  */
 
 import { createWriteStream } from "fs";
 import { PassThrough } from "stream";
 import WebSocket from "ws";
-import { UserController } from './../controller/UserController';
+import getHandler from '../routers/ws-handler';
+import AllController from '../controller';
+
+interface Msg {
+  cbk: string;
+  data: {
+    com: number;
+    task: number;
+    id: number;
+    params?: any;
+  };
+  extra: any;
+};
 
 export class MySocket {
   private uid: string;
   private conn: WebSocket;
 
   private socketPool: Map<string, WebSocket>;
-
-  private user_controller: UserController;
 
   private fileName: string;
   private fileType: 'img' | 'audio';
@@ -28,9 +38,9 @@ export class MySocket {
     this.init();
   }
 
-  init() {
-    this.user_controller = new UserController(this.uid, this.conn);
-    this.user_controller.getUserInfo();
+  async init() {
+    const user_info = await AllController.UserController.getUserInfo(+this.uid);
+    this.conn.send(user_info);
   }
 
   getOnlines() {
@@ -38,7 +48,7 @@ export class MySocket {
     
   }
 
-  msgProcess(str: any) {
+  msgProcess(str: Msg | Buffer) {
     console.log('---消息处理---');
     if (Buffer.isBuffer(str)) {
       const file = createWriteStream(__dirname + `../../../public/${this.fileType}/${this.fileName}`);
@@ -46,7 +56,7 @@ export class MySocket {
       buff.end(str);
       buff.pipe(file);
     } else {
-      const { com, task, extra } = str;
+      const { cbk, data: { com, task, id, params }, extra } = str;
       if (com === 999) {
         const { fileName } = extra;
         this.fileName = fileName;
@@ -55,6 +65,10 @@ export class MySocket {
         } else if (task === 2) {
           this.fileType = 'audio';
         }
+      } else {
+        const { Controller, handler } = getHandler(com, task, id);
+        // @ts-ignore
+        AllController[Controller][handler](params);
       }
     }
   }
