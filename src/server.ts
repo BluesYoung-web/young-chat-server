@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2020-09-23 08:58:47
- * @LastEditTime: 2021-06-17 17:52:09
+ * @LastEditTime: 2021-06-21 11:31:55
  * @Description: http 服务器启动配置
  */
 import Koa from 'koa';
@@ -18,6 +18,7 @@ import { myredis } from './database/conn';
 import logger from './middleware/logger';
 import { MySocket } from './model/socket';
 import { URLSearchParams } from 'url';
+import { pushFormat } from './controller/BaseController';
 
 export const createApp = () => {
   const app = new Koa();
@@ -48,12 +49,6 @@ let ws: WebSocketServer;
  */
 const websocketPool = new Map<string, WebSocket>();
 /**
- * 推送消息格式化
- */
-const pushFormat = ({ cbk = '', data = {}, extra = null }) => {
-  return JSON.stringify({ cbk, data, extra });
-}
-/**
  * 签名校验
  */
 const tokenCheck = async (sign: string, uid: string, conn: WebSocket) => {
@@ -82,10 +77,10 @@ const tokenCheck = async (sign: string, uid: string, conn: WebSocket) => {
       conn.on('error', (code: Error, reason: any) => {
         console.log('服务器异常关闭:\n' + code + reason);
       });
-      const str = pushFormat({ data: '签名校验成功，欢迎使用' });
+      const str = pushFormat(conf.Structor.操作成功, { msg: '签名校验成功，欢迎使用' });
       conn.send(str);
     } else {
-      conn.send(pushFormat({ cbk: conf.Structor.签名过期, data: '签名过期，请重新登录' }));
+      conn.send(pushFormat(conf.Structor.操作失败, { msg: '签名过期，请重新登录' }, conf.Structor.签名过期));
       conn.close(4000, '签名错误');
     }
 };
@@ -95,7 +90,7 @@ const tokenCheck = async (sign: string, uid: string, conn: WebSocket) => {
 const updateSocketPool = (uid: string, conn: WebSocket) => {
   const old_client = websocketPool.get(uid);
   if (old_client) {
-    old_client.send(pushFormat({ cbk: conf.Structor.异地登录, data: '账号异地登录，建议重新登录之后修改密码' }));
+    old_client.send(pushFormat(conf.Structor.操作失败, { msg: '账号异地登录，建议重新登录之后修改密码' }, conf.Structor.异地登录));
     old_client.close(4001, '异地登录');
   }
   websocketPool.set(uid, conn);

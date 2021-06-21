@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-08 14:10:59
- * @LastEditTime: 2021-06-18 15:33:43
+ * @LastEditTime: 2021-06-21 11:31:14
  * @Description: 
  */
 import { Context } from 'koa';
@@ -26,6 +26,6 @@ export class BaseController {
   }
 };
 
-export const pushFormat = (cbk: string, data: any, extra = null) => {
+export const pushFormat = (cbk: string, data: any, extra: any = null) => {
   return JSON.stringify({ cbk, data, extra });
 };

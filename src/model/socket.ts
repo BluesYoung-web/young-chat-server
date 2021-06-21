@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-09 14:10:41
- * @LastEditTime: 2021-06-18 17:50:30
+ * @LastEditTime: 2021-06-21 16:07:49
  * @Description: 管理 Websocket 消息
  */
 
@@ -10,6 +10,8 @@ import { PassThrough } from "stream";
 import WebSocket from "ws";
 import getHandler from '../routers/ws-handler';
 import AllController from '../controller';
+import { pushFormat } from "../controller/BaseController";
+import conf from "../../conf";
 
 interface Msg {
   cbk: string;
@@ -48,13 +50,15 @@ export class MySocket {
     
   }
 
-  msgProcess(str: Msg | Buffer) {
+  async msgProcess(str: Msg | Buffer) {
     console.log('---消息处理---');
     if (Buffer.isBuffer(str)) {
       const file = createWriteStream(__dirname + `../../../public/${this.fileType}/${this.fileName}`);
       const buff = new PassThrough();
       buff.end(str);
       buff.pipe(file);
+      const res = pushFormat(conf.Structor.文件上传成功, { url: `/${this.fileType}/${this.fileName}`, fileType: this.fileType });
+      this.conn.send(res);
     } else {
       const { cbk, data: { com, task, id, params }, extra } = str;
       if (com === 999) {
@@ -68,7 +72,8 @@ export class MySocket {
       } else {
         const { Controller, handler } = getHandler(com, task, id);
         // @ts-ignore
-        AllController[Controller][handler](params);
+        const res = await AllController[Controller][handler](params, this.uid);
+        this.conn.send(res);
       }
     }
   }
