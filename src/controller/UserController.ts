@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-08 11:02:48
- * @LastEditTime: 2021-06-21 11:52:44
+ * @LastEditTime: 2021-06-22 10:46:21
  * @Description: 用户信息相关
  */
 import { getRepository } from 'typeorm';
@@ -30,7 +30,6 @@ export class UserController {
       nick: info?.metadata.nick,
       motto: info?.metadata.motto,
       avatar: info?.metadata.avatar,
-      wxid: info?.metadata.wxid,
       send: info?.metadata.circles ?? 0,
       like:  0,
       comment: 0
@@ -60,7 +59,6 @@ export class UserController {
         nick,
         motto,
         avatar,
-        wxid: instance.metadata.wxid,
         send: instance.metadata.circles ?? 0,
         like: instance.metadata.likes ?? 0,
         comment: 0 

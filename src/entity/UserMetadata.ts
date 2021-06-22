@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-14 10:39:07
- * @LastEditTime: 2021-06-17 17:07:01
+ * @LastEditTime: 2021-06-22 10:46:13
  * @Description: 用户相关的元数据
  */
 import { Entity, Column, JoinTable, ManyToMany, OneToMany, OneToOne, PrimaryGeneratedColumn, JoinColumn } from 'typeorm';
@@ -25,9 +25,6 @@ export class UserMetaData {
 
   @Column({ default: '' })
   avatar: string;
-
-  @Column({ default: '' })
-  wxid: string;
 
   @ManyToMany(() => User)
   @JoinTable()
