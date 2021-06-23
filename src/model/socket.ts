@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-09 14:10:41
- * @LastEditTime: 2021-06-21 16:07:49
+ * @LastEditTime: 2021-06-23 17:38:25
  * @Description: 管理 Websocket 消息
  */
 
@@ -46,8 +46,7 @@ export class MySocket {
   }
 
   getOnlines() {
-    console.log([...this.socketPool.keys()]);
-    
+    return [...this.socketPool.keys()];
   }
 
   async msgProcess(str: Msg | Buffer) {
@@ -72,7 +71,7 @@ export class MySocket {
       } else {
         const { Controller, handler } = getHandler(com, task, id);
         // @ts-ignore
-        const res = await AllController[Controller][handler](params, this.uid);
+        const res = await AllController[Controller][handler](params, this.uid, this);
         this.conn.send(res);
       }
     }

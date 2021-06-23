@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2020-09-23 08:58:47
- * @LastEditTime: 2021-06-21 11:31:55
+ * @LastEditTime: 2021-06-23 17:44:30
  * @Description: http 服务器启动配置
  */
 import Koa from 'koa';
@@ -73,9 +73,11 @@ const tokenCheck = async (sign: string, uid: string, conn: WebSocket) => {
 
       conn.on('close', (code, reason) => {
         console.log('socket服务器关闭:\n' + code + reason);
+        websocketPool.delete(uid);
       });
       conn.on('error', (code: Error, reason: any) => {
         console.log('服务器异常关闭:\n' + code + reason);
+        websocketPool.delete(uid);
       });
       const str = pushFormat(conf.Structor.操作成功, { msg: '签名校验成功，欢迎使用' });
       conn.send(str);
