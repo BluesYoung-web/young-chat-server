@@ -1,10 +1,10 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-08 11:02:48
- * @LastEditTime: 2021-06-23 19:30:27
+ * @LastEditTime: 2021-06-24 18:11:16
  * @Description: 用户信息相关
  */
-import { getRepository, Like } from 'typeorm';
+import { getRepository } from 'typeorm';
 import { User } from '../entity/User';
 import { pushFormat } from './BaseController';
 import conf from '../../conf';
@@ -43,9 +43,9 @@ export class UserController {
         nick: info.metadata.nick ?? '',
         motto: info.metadata.motto ?? '',
         avatar: info.metadata.avatar ?? '',
-        send: info.metadata?.circles?.length ?? 0,
-        like:  info.metadata?.likes?.length ?? 0,
-        comment: info.metadata?.comments?.length ?? 0
+        send: info.circles?.length ?? 0,
+        like:  info.likes?.length ?? 0,
+        comment: info.comments?.length ?? 0
       };
       res = pushFormat(conf.Structor.操作成功, temp, conf.Structor.获取当前用户信息);
     } else {
@@ -78,9 +78,9 @@ export class UserController {
         nick,
         motto,
         avatar,
-        send: instance.metadata.circles ?? 0,
-        like: instance.metadata.likes ?? 0,
-        comment: 0 
+        send: instance?.circles ?? 0,
+        like: instance?.likes ?? 0,
+        comment: instance.comments?.length ?? 0
       }}, conf.Structor.修改当前用户信息);
       return res;
     } else {
@@ -132,6 +132,7 @@ export class UserController {
       .where(`user.uid = ${uid}`)
       .printSql()
       .getRawMany();
+    friends.forEach((item) => item.is_friend = true);
     return friends;
   }
   /**
