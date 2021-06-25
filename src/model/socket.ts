@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-09 14:10:41
- * @LastEditTime: 2021-06-23 17:38:25
+ * @LastEditTime: 2021-06-25 15:13:43
  * @Description: 管理 Websocket 消息
  */
 
@@ -41,13 +41,10 @@ export class MySocket {
   }
 
   async init() {
-    const user_info = await AllController.UserController.getUserInfo(+this.uid);
+    const user_info = await AllController.UserController.getUserInfo({}, +this.uid, this);
     this.conn.send(user_info);
   }
 
-  getOnlines() {
-    return [...this.socketPool.keys()];
-  }
 
   async msgProcess(str: Msg | Buffer) {
     console.log('---消息处理---');
@@ -79,5 +76,16 @@ export class MySocket {
 
   offLineSend() {
     console.log('清空离线消息队列');
+  }
+
+  getOnlines() {
+    return [...this.socketPool.keys()];
+  }
+
+  pushMsg(uids: number[], msg: string) {
+    for (const uid of uids) {
+      const conn = this.socketPool.get(uid + '');
+      conn?.send(msg);
+    }
   }
 }
