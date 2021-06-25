@@ -1,11 +1,13 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-08 11:02:48
- * @LastEditTime: 2021-06-24 18:11:16
+ * @LastEditTime: 2021-06-25 17:50:33
  * @Description: 用户信息相关
  */
 import { getRepository } from 'typeorm';
 import { User } from '../entity/User';
+import { Likes } from '../entity/Likes';
+import { Comments } from '../entity/Comments';
 import { pushFormat } from './BaseController';
 import conf from '../../conf';
 import { MySocket } from './../model/socket';
@@ -26,28 +28,40 @@ export class UserController {
    * 获取用户详细信息
    * @param uid 
    */
-  static async getUserInfo(uid: number) {
+  static async getUserInfo(_: any, uid: number, ctx: MySocket) {
     const userRepository = getRepository(User);
-    const info = await userRepository.findOne({
-      where: { uid },
-      select: ['uid', 'tel', 'metadata'],
-      relations: ['metadata']
-    });
+
+    const user_info = await userRepository.createQueryBuilder('user')
+      .leftJoinAndSelect('user.metadata', 'meta')
+      .leftJoinAndSelect('user.circles', 'circles')
+      .select('user.uid', 'uid')
+      .addSelect('user.tel', 'tel')
+      .addSelect('meta.nick', 'nick')
+      .addSelect('meta.motto', 'motto')
+      .addSelect('meta.avatar', 'avatar')
+      .addSelect(`COUNT(circles.autoid)`, 'send')
+      .groupBy('user.uid')
+      .where(`user.uid = ${uid}`)
+      .getRawOne();
+
+    const likeRepositiory = getRepository(Likes);
+    const like = await likeRepositiory.createQueryBuilder('likes')
+      .leftJoinAndSelect('likes.user', 'user')
+      .where(`user.uid = ${uid}`)
+      .getCount();
+
+    const commentRepositiory = getRepository(Comments);
+    const comment = await commentRepositiory.createQueryBuilder('comments')
+      .leftJoinAndSelect('comments.user', 'user')
+      .where(`user.uid = ${uid}`)
+      .getCount();
+    
+    user_info.like = like;
+    user_info.comment = comment;
+
     let res: string;
-    if (info) {
-      // console.log(info);
-      
-      const temp: UserInfo = {
-        uid: info.uid ?? 0,
-        tel: info.tel ?? '',
-        nick: info.metadata.nick ?? '',
-        motto: info.metadata.motto ?? '',
-        avatar: info.metadata.avatar ?? '',
-        send: info.circles?.length ?? 0,
-        like:  info.likes?.length ?? 0,
-        comment: info.comments?.length ?? 0
-      };
-      res = pushFormat(conf.Structor.操作成功, temp, conf.Structor.获取当前用户信息);
+    if (user_info) {
+      res = pushFormat(conf.Structor.操作成功, user_info, conf.Structor.获取当前用户信息);
     } else {
       res = pushFormat(conf.Structor.操作失败, { msg: '用户不存在' });
     }
