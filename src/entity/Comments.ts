@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-09 17:53:24
- * @LastEditTime: 2021-06-24 19:09:25
+ * @LastEditTime: 2021-06-25 12:07:30
  * @Description: 评论表
  */
 import { Entity, Column, ManyToOne, PrimaryGeneratedColumn, OneToOne, CreateDateColumn } from 'typeorm';
@@ -26,6 +26,6 @@ export class Comments {
   @CreateDateColumn()
   time: string;
 
-  @Column()
-  reply: number;
+  @Column({ default: 0 })
+  reply?: number;
 }
