@@ -1,16 +1,21 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-08 11:02:48
- * @LastEditTime: 2021-06-25 17:50:33
+ * @LastEditTime: 2021-06-26 17:55:07
  * @Description: 用户信息相关
  */
-import { getRepository } from 'typeorm';
+import { getConnection, getRepository } from 'typeorm';
 import { User } from '../entity/User';
 import { Likes } from '../entity/Likes';
 import { Comments } from '../entity/Comments';
+import { UserMetaData } from '../entity/UserMetadata';
+import { ChatRoom } from '../entity/ChatRoom';
+
+import { FriendApply } from '../entity/FriendApply';
 import { pushFormat } from './BaseController';
 import conf from '../../conf';
-import { MySocket } from './../model/socket';
+import { MySocket } from '../model/socket';
+import { RoomMsg, MsgType } from './../@types/room-msg';
 
 interface UserInfo {
   avatar: string;
@@ -137,8 +142,8 @@ export class UserController {
   static async getFriends(uid: number) {
     const userRepository = getRepository(User);
     const friends = await userRepository.createQueryBuilder('user')
-      .leftJoinAndSelect('user.f_id', 'friend')
-      .leftJoinAndSelect('friend.metadata', 'meta')
+      .innerJoinAndSelect('user.f_id', 'friend')
+      .innerJoinAndSelect('friend.metadata', 'meta')
       .select('friend.uid', 'uid')
       .addSelect('meta.avatar', 'avatar')
       .addSelect('meta.nick', 'nick')
@@ -164,5 +169,228 @@ export class UserController {
     }
     const res = pushFormat(conf.Structor.获取用户好友列表, friends);
     return res;
+  }
+
+  /**
+   * 发送好友申请
+   */
+  static async sendFriendApply(args: any, _uid: number, ctx: MySocket) {
+    const { to, msg } = args;
+
+    // 获取连接
+    const connection = getConnection();
+    // 创建新的 queryrunner 
+    const queryRunner = connection.createQueryRunner();
+    // 建立新的数据库连接
+    await queryRunner.connect();
+
+    // 开始事务
+    await queryRunner.startTransaction();
+
+    try {
+      await queryRunner.manager.createQueryBuilder()
+        .insert()
+        .into(FriendApply)
+        .values({
+          from: () => '' + _uid,
+          to,
+          msg
+        })
+        .execute();
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      ctx.pushMsg([to], pushFormat(conf.Structor.操作成功, {}, conf.Structor.推送好友申请));
+      return pushFormat(conf.Structor.操作成功, { msg: '已发送好友申请！' });
+    } catch (error) {
+      console.log(error);
+
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release()
+
+      return pushFormat(conf.Structor.操作失败, { msg: '好友申请发送失败' });
+    }
+  }
+
+  /**
+   * 获取好友申请列表
+   */
+  static async getFriendApplyList(args: any, _uid: number, ctx: MySocket) {
+    const applyRepo = getRepository(FriendApply);
+
+    const from = await applyRepo.createQueryBuilder('apply')
+      .select('apply.autoid', 'autoid')
+      .addSelect('apply.time', 'time')
+      .addSelect('apply.msg', 'msg')
+      .addSelect('apply.state', 'state')
+      .addSelect('apply.from', 'from')
+      .addSelect('apply.to', 'to')
+      .where(`apply.from = ${_uid}`)
+      .orderBy('apply.time', 'DESC')
+      .getRawMany();
+    const to = await applyRepo.createQueryBuilder('apply')
+      .select('apply.autoid', 'autoid')
+      .addSelect('apply.time', 'time')
+      .addSelect('apply.msg', 'msg')
+      .addSelect('apply.state', 'state')
+      .addSelect('apply.from', 'from')
+      .addSelect('apply.to', 'to')
+      .where(`apply.to = ${_uid}`)
+      .orderBy('apply.state', 'ASC')
+      .addOrderBy('apply.time', 'DESC')
+      .getRawMany();
+    
+    const metaRepo = getRepository(UserMetaData);
+    for (const item of from) {
+      const user = await metaRepo.createQueryBuilder('meta')
+        .select('meta.nick', 'to_nick')
+        .addSelect('meta.avatar', 'to_avatar')
+        .where(`meta.autoid = ${item.to}`)
+        .getRawOne();
+      item.to_nick = user.to_nick;
+      item.to_avatar = user.to_avatar;
+    }
+
+    for (const item of to) {
+      const user = await metaRepo.createQueryBuilder('meta')
+        .select('meta.nick', 'from_nick')
+        .addSelect('meta.avatar', 'from_avatar')
+        .where(`meta.autoid = ${item.from}`)
+        .getRawOne();
+      item.from_nick = user.from_nick;
+      item.from_avatar = user.from_avatar;
+    }
+    
+    return pushFormat(conf.Structor.获取好友申请列表, { from, to });
+  }
+
+  /**
+   * 处理好友申请
+   */
+  static async operateFriendApply(args: any, _uid: number, ctx: MySocket) {
+    const { autoid = 0, from = 0, is_agree = false } = args;
+    const userRepo = getRepository(User);
+    // 获取连接
+    const connection = getConnection();
+    // 创建新的 queryrunner 
+    const queryRunner = connection.createQueryRunner();
+    // 建立新的数据库连接
+    await queryRunner.connect();
+
+    // 开始事务
+    await queryRunner.startTransaction();
+
+    try {
+      if (is_agree) {
+        // 同意，同意 from 相同的全部待处理的
+        await queryRunner.manager.createQueryBuilder()
+          .update(FriendApply)
+          .set({ state: 1 })
+          .where(`from = ${from}`)
+          .andWhere(`to = ${_uid}`)
+          .andWhere(`state = 0`)
+          .execute();
+        // 加好友，双向存储
+        const user_1 = await userRepo.findOne({ where: { uid: from } });
+        const user_2 = await userRepo.findOne({ where: { uid: _uid } });
+        if (user_1 && user_2) {
+          if (user_1.f_id instanceof Array) {
+            user_1.f_id.push(user_2);
+          } else {
+            user_1.f_id = [user_2];
+          }
+          if (user_2.f_id instanceof Array) {
+            user_2.f_id.push(user_1);
+          } else {
+            user_2.f_id = [user_1];
+          }
+          userRepo.save(user_1);
+          userRepo.save(user_2);
+          // 创建一对一聊天室
+          const room = new ChatRoom();
+          room.users = [user_1, user_2];
+          const s_room = await queryRunner.manager.save(room);
+          const msg: RoomMsg = {
+            autoid: s_room.autoid,
+            owner: s_room.owner,
+            msg_type: MsgType.系统消息,
+            content: '你们已经是好友了，打个招呼吧！'
+          };
+          ctx.pushMsg([user_1.uid, user_2.uid], pushFormat(conf.Structor.操作成功, msg, conf.Structor.推送聊天室创建消息));
+        }
+      } else {
+        // 拒绝，拒绝某一个
+        await queryRunner.manager.createQueryBuilder()
+          .update(FriendApply)
+          .set({ state: 2 })
+          .where(`autoid = ${autoid}`)
+          .execute();
+      }
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      return pushFormat(conf.Structor.操作成功, { msg: '处理成功' });
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return pushFormat(conf.Structor.操作失败, { msg: '处理失败' });
+    }
+  }
+
+  /**
+   * 删好友
+   */
+  static async delFriend(args: any, _uid: number, ctx: MySocket) {
+    const { fid = 0 } = args;
+    const userRepo = getRepository(User);
+    const roomRepo = getRepository(ChatRoom);
+    // 获取连接
+    const connection = getConnection();
+    // 创建新的 queryrunner 
+    const queryRunner = connection.createQueryRunner();
+    // 建立新的数据库连接
+    await queryRunner.connect();
+
+    // 开始事务
+    await queryRunner.startTransaction();
+    try {
+      const user_1 = await userRepo.findOne({ where: { uid: fid }, relations: ['f_id'] });
+      const user_2 = await userRepo.findOne({ where: { uid: _uid }, relations: ['f_id'] });
+      if (user_1 && user_1.f_id.length > 0) {
+        user_1.f_id = user_1.f_id.filter((item) => item.uid !== user_2?.uid);
+      }
+      if (user_2 && user_2.f_id.length) {
+        user_2.f_id = user_2.f_id.filter((item) => item.uid !== user_1?.uid);
+      }
+      // 双向删除
+      await queryRunner.manager.save(user_1);
+      await queryRunner.manager.save(user_2);
+      // 删除私聊的聊天室
+      const room = await roomRepo.find({
+        where: { owner: 0 },
+        relations: ['users']
+      });
+      const r1_room = room.filter((r) => r.users.length === 2);
+      let toBeRm: unknown;
+      if (r1_room.length > 0) {
+        toBeRm = r1_room.find((r) => {
+          const users = r.users.map((user) => user.uid);
+          if (users.includes(+_uid) && users.includes(+fid)) {
+            return r;
+          }
+        });
+        if (toBeRm) {
+          await queryRunner.manager.remove(toBeRm);
+        }
+      }
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      return pushFormat(conf.Structor.操作成功, { msg: '删除成功' });
+    } catch (error) {
+      console.log(error);
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      return pushFormat(conf.Structor.操作失败, { msg: '删除失败' });
+    }
+
   }
 }

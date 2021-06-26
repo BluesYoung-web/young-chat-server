@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-09 17:53:24
- * @LastEditTime: 2021-06-25 12:07:30
+ * @LastEditTime: 2021-06-26 11:33:53
  * @Description: 评论表
  */
 import { Entity, Column, ManyToOne, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
@@ -14,7 +14,7 @@ export class Comments {
   @PrimaryGeneratedColumn()
   autoid: number;
 
-  @Column()
+  @Column({ default: '' })
   content: string;
 
   @ManyToOne(() => Circle, circle => circle.comments)

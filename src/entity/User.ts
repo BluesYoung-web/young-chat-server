@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-08 10:12:17
- * @LastEditTime: 2021-06-24 18:07:54
+ * @LastEditTime: 2021-06-26 16:26:03
  * @Description: 用户实体(表)
  */
 import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, JoinTable, ManyToMany, OneToMany } from 'typeorm';
@@ -9,6 +9,8 @@ import { UserMetaData } from './UserMetadata';
 import { Circle } from './Circles';
 import { Likes } from './Likes';
 import { Comments } from './Comments';
+import { FriendApply } from './FriendApply';
+import { ChatRoom } from './ChatRoom';
 
 @Entity()
 export class User {
@@ -33,6 +35,15 @@ export class User {
 
   @OneToMany(() => Comments, comment => comment.user)
   comments: Comments[];
+
+  @OneToMany(() => FriendApply, adds => adds.from)
+  adds: FriendApply[];
+
+  @OneToMany(() => FriendApply, apply => apply.to)
+  applys: FriendApply[];
+
+  @ManyToMany(() => ChatRoom, room => room.users)
+  all_rooms: ChatRoom[];
   
   @OneToOne(() => UserMetaData, meta => meta.user, {
     cascade: true // 保存用户的时候，自动保存相关联的元数据

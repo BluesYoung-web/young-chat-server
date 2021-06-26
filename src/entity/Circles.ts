@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-09 17:39:41
- * @LastEditTime: 2021-06-24 18:01:34
+ * @LastEditTime: 2021-06-26 11:33:40
  * @Description: 朋友圈表
  */
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, OneToMany } from "typeorm";
@@ -14,10 +14,10 @@ export class Circle {
   @PrimaryGeneratedColumn()
   autoid: number;
 
-  @Column()
+  @Column({ default: '' })
   url: string;
 
-  @Column()
+  @Column({ default: '' })
   content: string;
 
   @ManyToOne(() => User, user => user.circles)
