@@ -1,13 +1,14 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-06-24 15:11:59
- * @LastEditTime: 2021-06-25 16:34:10
+ * @LastEditTime: 2021-06-26 11:08:01
  * @Description: 动态相关
  */
 import { Circle } from '../entity/Circles';
 import { User } from '../entity/User';
 import { Likes } from '../entity/Likes';
 import { Comments } from '../entity/Comments';
+import { UserMetaData } from '../entity/UserMetadata';
 
 import { getRepository, getConnection } from 'typeorm';
 import { pushFormat } from './BaseController';
@@ -64,12 +65,12 @@ export class CircleController {
    * 获取动态
    */
   static async getCircle(args: any, _uid: number, ctx: MySocket) {
-    const { page = 1, limit = 10 } = args;
+    const { page = 1, limit = 10, is_my = false, is_like = false, is_comment = false } = args;
     let fids = await UserController.getFriends(_uid);
     fids = fids.map((item) => item.uid);
 
     const circleRepository = getRepository(Circle);
-    const res = await circleRepository.createQueryBuilder('circle')
+    let temp = await circleRepository.createQueryBuilder('circle')
       .leftJoinAndSelect('circle.user', 'user')
       .leftJoinAndSelect('user.metadata', 'meta')
       .leftJoinAndSelect('circle.likes', 'likes')
@@ -86,28 +87,58 @@ export class CircleController {
       .addSelect('user.uid', 'user_id')
       .addSelect('meta.nick', 'user_nick')
       .addSelect('meta.avatar', 'user_avatar')
-      .addSelect(`COUNT(likes.autoid)`, 'likes_num')
-      .addSelect(`COUNT(comments.autoid)`, 'comments_num')
+      // .addSelect(`COUNT(likes.autoid)`, 'likes_num')
+      // .addSelect(`COUNT(comments.autoid)`, 'comments_num')
       .groupBy('circle.autoid')
       .addOrderBy('circle.time', 'DESC')
-      .where(`user.uid in (${[_uid, ...fids]})`)
-      .getRawMany();
+      .where(`user.uid in (${[_uid, ...fids]})`);
 
+    if (is_my) {
+      temp = await temp.where(`user.uid = ${_uid}`);
+    };
+    if (is_like) {
+      temp = await temp.andWhere(`likes.user = ${_uid}`);
+    }
+    if (is_comment) {
+      temp = await temp.andWhere(`comments.user = ${_uid}`);
+    };
+
+    const res = await temp.getRawMany();
+
+    
     const userRepository = getRepository(User);
+    const commentRepositiory = getRepository(Comments);
+    const likeRepositiory = getRepository(Likes);
     for (const circle of res) {
-      const hasLike = await userRepository.createQueryBuilder('user')
-      .leftJoinAndSelect('user.circles', 'circle')
-      .leftJoinAndSelect('user.likes', 'likes')
-      .select('likes.autoid', 'has_like')
-      .where(`likes.user = ${_uid}`)
-      .andWhere(`likes.circle = ${circle.autoid}`)
-      .getRawMany();
-      
-      if (hasLike.length > 0) {
-        circle.has_like = true;
+      // 获取当前用户的点赞状态
+      if (!is_like) {
+        const hasLike = await userRepository.createQueryBuilder('user')
+        .leftJoinAndSelect('user.circles', 'circle')
+        .leftJoinAndSelect('user.likes', 'likes')
+        .select('likes.autoid', 'has_like')
+        .where(`likes.user = ${_uid}`)
+        .andWhere(`likes.circle = ${circle.autoid}`)
+        .getCount();
+        if (hasLike > 0) {
+          circle.has_like = true;
+        } else {
+          circle.has_like = false;
+        }
       } else {
-        circle.has_like = false;
+        circle.has_like = true;
       }
+      // 统计评论数
+      const comments_num = await commentRepositiory.createQueryBuilder('comments')
+        .select('comments.autoid', 'autoid')
+        .where(`comments.circle = ${circle.autoid}`)
+        .getCount();
+      circle.comments_num = comments_num;
+      // 统计点赞数
+      const likes_num = await likeRepositiory.createQueryBuilder('likes')
+        .select('likes.autoid', 'autoid')
+        .where(`likes.circle = ${circle.autoid}`)
+        .getCount();
+      circle.likes_num = likes_num;
     }
     
     return pushFormat(conf.Structor.获取动态, res);
@@ -211,6 +242,106 @@ export class CircleController {
       } else {
         return pushFormat(conf.Structor.操作失败, {});
       }
+    }
+  }
+
+  /**
+   * 获取评论列表
+   */
+  static async getComments(args: any, _uid: number, ctx: MySocket) {
+    const { autoid = 0 } = args;
+    
+    const commentsRepository = getRepository(Comments);
+    const metaRepository = getRepository(UserMetaData);
+
+    const res = await commentsRepository.createQueryBuilder('comments')
+      .leftJoinAndSelect('comments.circle', 'circle')
+      .leftJoinAndSelect('comments.user', 'user')
+      .leftJoinAndSelect('user.metadata', 'meta')
+      .select('comments.autoid', 'c_id')
+      .addSelect('comments.time', 'time')
+      .addSelect('comments.content', 'content')
+      .addSelect('comments.reply', 'reply_id')
+      .addSelect('user.uid', 'user_id')
+      .addSelect('meta.nick', 'user_nick')
+      .addSelect('meta.avatar', 'user_avatar')
+      .where(`circle.autoid = ${autoid}`)
+      .orderBy('comments.time', 'DESC')
+      .getRawMany();
+    
+    for (const comment of res) {
+      if (comment.reply_id !== 0) {
+        const meta = await metaRepository.findOne({ where: { autoid: comment.reply_id } });
+        comment.reply_nick = meta?.nick ?? comment.reply_id;
+      }
+    }
+    
+    return pushFormat(conf.Structor.获取评论列表, res);
+  }
+
+  /**
+   * 发表评论
+   */
+  static async putUpComments(args: any, _uid: number, ctx: MySocket) {
+    const { autoid, reply_id, content } = args;
+    // 获取连接
+    const connection = getConnection();
+    // 创建新的 queryrunner 
+    const queryRunner = connection.createQueryRunner();
+    // 建立新的数据库连接
+    await queryRunner.connect();
+
+    // 开始事务
+    await queryRunner.startTransaction();
+
+    try {
+      await queryRunner.manager.createQueryBuilder()
+        .insert()
+        .into(Comments)
+        .values({
+          content,
+          circle: autoid,
+          user: () => '' + _uid,
+          reply: reply_id
+        })
+        .execute();
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+
+      return pushFormat(conf.Structor.操作成功, { msg: '评论发表成功' });
+    } catch (error) {
+      console.log(error);
+
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release()
+
+      return pushFormat(conf.Structor.操作失败, { msg: '评论发表失败' });
+    }
+  }
+
+  /**
+   * 删除评论
+   */
+  static async delComments(args: any, _uid: number, ctx: MySocket) {
+    const { c_id = 0 } = args;
+
+    // 获取连接
+    const connection = getConnection();
+    // 创建新的 queryrunner 
+    const queryRunner = connection.createQueryRunner();
+    // 建立新的数据库连接
+    await queryRunner.connect();
+
+    try {
+      await queryRunner.manager.createQueryBuilder()
+        .from('comments', 'comments')
+        .where(`comments.autoid = ${c_id}`)
+        .delete()
+        .execute();
+      return pushFormat(conf.Structor.操作成功, { msg: '评论删除成功！' });
+    } catch (error) {
+      console.log(error);
+      return pushFormat(conf.Structor.操作失败, { msg: '评论删除失败' });
     }
   }
 }

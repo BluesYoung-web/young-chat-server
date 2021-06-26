@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-06-17 17:31:06
- * @LastEditTime: 2021-06-25 17:52:52
+ * @LastEditTime: 2021-06-26 10:10:08
  * @Description: websocket 消息及其对应的处理函数
  */
 import conf from "../../conf";
@@ -16,6 +16,9 @@ map.set(conf.Structor.发动态, { Controller: 'CircleController', handler: 'sen
 map.set(conf.Structor.获取动态, { Controller: 'CircleController', handler: 'getCircle' });
 map.set(conf.Structor.删除动态, { Controller: 'CircleController', handler: 'delCircle' });
 map.set(conf.Structor.点赞, { Controller: 'CircleController', handler: 'clickLike' });
+map.set(conf.Structor.获取评论列表, { Controller: 'CircleController', handler: 'getComments' });
+map.set(conf.Structor.发表评论, { Controller: 'CircleController', handler: 'putUpComments' });
+map.set(conf.Structor.删除评论, { Controller: 'CircleController', handler: 'delComments' });
 
 export default (com: number, task: number, id:number) => {
   console.log(`${com}-${task}-${id}`);

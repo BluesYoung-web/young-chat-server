@@ -4,7 +4,7 @@
  * @LastEditTime: 2021-06-25 12:07:30
  * @Description: 评论表
  */
-import { Entity, Column, ManyToOne, PrimaryGeneratedColumn, OneToOne, CreateDateColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
 import { Circle } from './Circles';
 import { User } from "./User";
 
