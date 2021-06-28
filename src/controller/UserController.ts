@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-08 11:02:48
- * @LastEditTime: 2021-06-26 17:55:07
+ * @LastEditTime: 2021-06-28 16:27:37
  * @Description: 用户信息相关
  */
 import { getConnection, getRepository } from 'typeorm';
@@ -10,12 +10,14 @@ import { Likes } from '../entity/Likes';
 import { Comments } from '../entity/Comments';
 import { UserMetaData } from '../entity/UserMetadata';
 import { ChatRoom } from '../entity/ChatRoom';
-
 import { FriendApply } from '../entity/FriendApply';
+
 import { pushFormat } from './BaseController';
 import conf from '../../conf';
 import { MySocket } from '../model/socket';
 import { RoomMsg, MsgType } from './../@types/room-msg';
+
+import { RoomController } from './RoomController';
 
 interface UserInfo {
   avatar: string;
@@ -157,8 +159,8 @@ export class UserController {
   /**
    * 获取用户好友列表(带在线状态)
    */
-   static async getFriendList(_: any, uid: number, ctx: MySocket) {
-    const friends = await UserController.getFriends(uid);
+   static async getFriendList(_: any, _uid: number, ctx: MySocket) {
+    const friends = await UserController.getFriends(_uid);
     const onlines = ctx.getOnlines().map((item) => +item);
     for (const item of friends) {
       if (onlines.includes(item.uid)) {
@@ -290,8 +292,8 @@ export class UserController {
           .andWhere(`state = 0`)
           .execute();
         // 加好友，双向存储
-        const user_1 = await userRepo.findOne({ where: { uid: from } });
-        const user_2 = await userRepo.findOne({ where: { uid: _uid } });
+        const user_1 = await userRepo.findOne({ where: { uid: from }, relations: ['metadata'] });
+        const user_2 = await userRepo.findOne({ where: { uid: _uid }, relations: ['metadata'] });
         if (user_1 && user_2) {
           if (user_1.f_id instanceof Array) {
             user_1.f_id.push(user_2);
@@ -313,9 +315,11 @@ export class UserController {
             autoid: s_room.autoid,
             owner: s_room.owner,
             msg_type: MsgType.系统消息,
-            content: '你们已经是好友了，打个招呼吧！'
+            content: '你们已经是好友了，打个招呼吧！',
+            send_time: Date.now(),
+            extra: { [_uid]: user_1.metadata, [from]: user_2.metadata }
           };
-          ctx.pushMsg([user_1.uid, user_2.uid], pushFormat(conf.Structor.操作成功, msg, conf.Structor.推送聊天室创建消息));
+          ctx.pushMsg([_uid, from], pushFormat(conf.Structor.推送聊天室消息, msg));
         }
       } else {
         // 拒绝，拒绝某一个
@@ -365,22 +369,9 @@ export class UserController {
       await queryRunner.manager.save(user_1);
       await queryRunner.manager.save(user_2);
       // 删除私聊的聊天室
-      const room = await roomRepo.find({
-        where: { owner: 0 },
-        relations: ['users']
-      });
-      const r1_room = room.filter((r) => r.users.length === 2);
-      let toBeRm: unknown;
-      if (r1_room.length > 0) {
-        toBeRm = r1_room.find((r) => {
-          const users = r.users.map((user) => user.uid);
-          if (users.includes(+_uid) && users.includes(+fid)) {
-            return r;
-          }
-        });
-        if (toBeRm) {
-          await queryRunner.manager.remove(toBeRm);
-        }
+      const room = await RoomController.getRoomByUids({ fid }, _uid, ctx);
+      if (room) {
+        await queryRunner.manager.remove(room);
       }
       await queryRunner.commitTransaction();
       await queryRunner.release();
