@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2020-09-23 08:58:47
- * @LastEditTime: 2021-06-23 17:44:30
+ * @LastEditTime: 2021-06-29 11:01:13
  * @Description: http 服务器启动配置
  */
 import Koa from 'koa';
@@ -60,7 +60,7 @@ const tokenCheck = async (sign: string, uid: string, conn: WebSocket) => {
       // 验证成功，实例化 socket
       let socket = new MySocket(uid, conn, websocketPool);
       // 清空离线消息队列
-      socket.offLineSend();
+      await socket.offLineSend(uid, conn);
 
       conn.on('message', (str: string) => {
         try {

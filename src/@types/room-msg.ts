@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-06-26 16:31:52
- * @LastEditTime: 2021-06-28 14:41:04
+ * @LastEditTime: 2021-06-29 10:19:25
  * @Description: 聊天室消息的数据结构
  */
 export enum MsgType {
@@ -33,9 +33,17 @@ export interface RoomMsg {
    */
   send_time: number;
   /**
+   * 发送者头像
+   */
+  send_avatar?: string;
+  /**
    * 发送者 uid
    */
   send_id?: number;
+  /**
+   * 发送者昵称
+   */
+  send_nick?: string;
   /**
    * 额外参数
    */

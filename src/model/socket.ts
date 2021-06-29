@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-09 14:10:41
- * @LastEditTime: 2021-06-25 15:13:43
+ * @LastEditTime: 2021-06-29 11:05:50
  * @Description: 管理 Websocket 消息
  */
 
@@ -12,6 +12,13 @@ import getHandler from '../routers/ws-handler';
 import AllController from '../controller';
 import { pushFormat } from "../controller/BaseController";
 import conf from "../../conf";
+import { myredis } from '../database/conn';
+
+const sleep = async (time: number) => {
+	return new Promise((resolve) => {
+		setTimeout(resolve, time * 1000);
+	});
+};
 
 interface Msg {
   cbk: string;
@@ -74,18 +81,34 @@ export class MySocket {
     }
   }
 
-  offLineSend() {
-    console.log('清空离线消息队列');
+  async offLineSend(uid: string, conn: WebSocket) {
+    console.log('---获取离线消息队列---');
+    const msgList = await myredis.get(`offline_msg_list_${uid}`) as string[] ?? [];
+    for (const msg of msgList) {
+      conn.send(msg);
+      // 500ms 发一条消息
+      await sleep(0.5);
+    }
+    await myredis.set(`offline_msg_list_${uid}`, []);
+    console.log('---清空离线消息队列---');
   }
 
   getOnlines() {
     return [...this.socketPool.keys()];
   }
 
-  pushMsg(uids: number[], msg: string) {
+  async pushMsg(uids: number[], msg: string) {
     for (const uid of uids) {
       const conn = this.socketPool.get(uid + '');
-      conn?.send(msg);
+      if (conn) {
+        // 在线，直接推送
+        conn.send(msg);
+      } else {
+        // 不在线，存入 redis 离线消息队列
+        const msgList = await myredis.get(`offline_msg_list_${uid}`) as string[] ?? [];
+        msgList.push(msg);
+        await myredis.set(`offline_msg_list_${uid}`, msgList);
+      }
     }
   }
 }

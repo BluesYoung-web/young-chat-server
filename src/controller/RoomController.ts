@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-06-28 16:07:43
- * @LastEditTime: 2021-06-28 17:19:19
+ * @LastEditTime: 2021-06-29 10:24:50
  * @Description: 处理聊天室相关的操作
  */
 import { ChatRoom } from '../entity/ChatRoom';
@@ -46,8 +46,36 @@ export class RoomController {
   /**
    * 创建群聊
    */
-  static async createChatRoom(args: { uids: number[] }, _uid: number, ctx: MySocket) {
-    
+  static async createChatRoom(args: { uids: number[], name?: string, cover?: string }, _uid: number, ctx: MySocket) {
+    const { uids, name = `群聊${Date.now()}`, cover = '' } = args;
+    let res: string;
+    if (uids.length === 1) {
+      // 获取一对一聊天室的相关信息
+      const { autoid = 0 } = await RoomController.getRoomByUids({ fid: uids[0] }, _uid, ctx) || {};
+      const room = await RoomController.getUsersByAutoid(autoid);
+      const [user_1, user_2] = room?.users ?? [];
+      const extra = {
+        [user_1.uid]: user_2.metadata,
+        [user_2.uid]: user_1.metadata
+      };
+      res = pushFormat(conf.Structor.创建聊天室, { ...room, extra });
+    } else {
+      // 创建多人聊天室
+      const roomRepo = getRepository(ChatRoom);
+      const userRepo = getRepository(User);
+      const room = new ChatRoom();
+      room.cover = cover;
+      room.name = name;
+      room.owner = _uid;
+      room.users = [];
+      for (const uid of [...uids, _uid]) {
+        const user = await userRepo.findOne({ where: { uid } });
+        user && room.users.push(user);
+      }
+      const savedRoom = await roomRepo.save(room);
+      res = pushFormat(conf.Structor.创建聊天室, savedRoom);
+    }
+    return res;
   }
   /**
    * 发消息
@@ -61,6 +89,7 @@ export class RoomController {
     } = args;
     const room = await RoomController.getUsersByAutoid(autoid);
     const users = room?.users?.map((user) => user.uid).filter((uid) => +uid !== +_uid) ?? [];
+    const sender = room?.users.find((user) => +user.uid === +_uid);
 
     let msg: RoomMsg;
     if (room?.owner === 0) {
@@ -72,9 +101,11 @@ export class RoomController {
         content,
         send_time: Date.now(),
         send_id: _uid,
+        send_avatar: sender?.metadata?.avatar ?? '',
+        send_nick: sender?.metadata?.nick ?? '',
         extra: {
-          [user_1.uid]: user_2,
-          [user_2.uid]: user_1
+          [user_1.uid]: user_2.metadata,
+          [user_2.uid]: user_1.metadata
         }
       };
     } else {
@@ -85,6 +116,8 @@ export class RoomController {
         content,
         send_time: Date.now(),
         send_id: _uid,
+        send_avatar: sender?.metadata?.avatar ?? '',
+        send_nick: sender?.metadata?.nick ?? '',
         extra: {
           ...extra,
           name: room?.name ?? `群聊${autoid}`,

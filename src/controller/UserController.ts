@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-08 11:02:48
- * @LastEditTime: 2021-06-28 16:27:37
+ * @LastEditTime: 2021-06-29 10:24:37
  * @Description: 用户信息相关
  */
 import { getConnection, getRepository } from 'typeorm';
@@ -317,7 +317,10 @@ export class UserController {
             msg_type: MsgType.系统消息,
             content: '你们已经是好友了，打个招呼吧！',
             send_time: Date.now(),
-            extra: { [_uid]: user_1.metadata, [from]: user_2.metadata }
+            extra: {
+              [_uid]: user_1.metadata,
+              [from]: user_2.metadata
+            }
           };
           ctx.pushMsg([_uid, from], pushFormat(conf.Structor.推送聊天室消息, msg));
         }

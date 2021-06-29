@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-06-17 17:31:06
- * @LastEditTime: 2021-06-28 16:48:35
+ * @LastEditTime: 2021-06-29 08:57:10
  * @Description: websocket 消息及其对应的处理函数
  */
 import conf from "../../conf";
@@ -18,6 +18,7 @@ map.set(conf.Structor.处理好友申请, { Controller: 'UserController', handle
 map.set(conf.Structor.删好友, { Controller: 'UserController', handler: 'delFriend' });
 
 map.set(conf.Structor.聊天室内发消息, { Controller: 'RoomController', handler: 'sendMsg' });
+map.set(conf.Structor.创建聊天室, { Controller: 'RoomController', handler: 'createChatRoom' });
 
 map.set(conf.Structor.发动态, { Controller: 'CircleController', handler: 'sendCircle' });
 map.set(conf.Structor.获取动态, { Controller: 'CircleController', handler: 'getCircle' });
