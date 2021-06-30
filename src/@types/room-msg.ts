@@ -1,14 +1,14 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-06-26 16:31:52
- * @LastEditTime: 2021-06-29 10:19:25
+ * @LastEditTime: 2021-06-30 08:30:28
  * @Description: 聊天室消息的数据结构
  */
 export enum MsgType {
   '系统消息' = 0,
   '文本消息' = 1,
-  '语音消息' = 2,
-  '图片消息' = 3,
+  '图片消息' = 2,
+  '语音消息' = 3,
   '其他' = 4
 }
 export interface RoomMsg {

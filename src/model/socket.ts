@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-09 14:10:41
- * @LastEditTime: 2021-06-29 11:05:50
+ * @LastEditTime: 2021-06-29 15:34:12
  * @Description: 管理 Websocket 消息
  */
 
@@ -60,7 +60,7 @@ export class MySocket {
       const buff = new PassThrough();
       buff.end(str);
       buff.pipe(file);
-      const res = pushFormat(conf.Structor.文件上传成功, { url: `/${this.fileType}/${this.fileName}`, fileType: this.fileType });
+      const res = pushFormat(conf.Structor.文件上传成功, { url: `/${this.fileType}/${this.fileName}`, fileType: this.fileType }, this.fileType === 'img' ? conf.Structor.上传图片 : conf.Structor.上传音频);
       this.conn.send(res);
     } else {
       const { cbk, data: { com, task, id, params }, extra } = str;
