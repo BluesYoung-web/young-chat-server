@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-08 11:02:48
- * @LastEditTime: 2021-06-29 10:24:37
+ * @LastEditTime: 2021-06-30 11:43:21
  * @Description: 用户信息相关
  */
 import { getConnection, getRepository } from 'typeorm';
@@ -11,6 +11,7 @@ import { Comments } from '../entity/Comments';
 import { UserMetaData } from '../entity/UserMetadata';
 import { ChatRoom } from '../entity/ChatRoom';
 import { FriendApply } from '../entity/FriendApply';
+import { Friend } from '../entity/Friend';
 
 import { pushFormat } from './BaseController';
 import conf from '../../conf';
@@ -143,17 +144,21 @@ export class UserController {
    */
   static async getFriends(uid: number) {
     const userRepository = getRepository(User);
+    const metaRepo = getRepository(UserMetaData);
     const friends = await userRepository.createQueryBuilder('user')
-      .innerJoinAndSelect('user.f_id', 'friend')
-      .innerJoinAndSelect('friend.metadata', 'meta')
-      .select('friend.uid', 'uid')
-      .addSelect('meta.avatar', 'avatar')
-      .addSelect('meta.nick', 'nick')
-      .addSelect('meta.motto', 'motto')
+      .innerJoinAndSelect('user.uid', 'friend')
+      .select('friend.fid', 'uid')
       .where(`user.uid = ${uid}`)
-      .printSql()
       .getRawMany();
-    friends.forEach((item) => item.is_friend = true);
+    for (const user of friends) {
+      const meta = await metaRepo.findOne({ where: { autoid: user.uid } });
+      if (meta) {
+        user.nick = meta.nick;
+        user.motto = meta.motto;
+        user.avatar = meta.avatar;
+        user.is_friend = true;
+      }
+    }
     return friends;
   }
   /**
@@ -168,6 +173,8 @@ export class UserController {
       } else {
         item.is_online = false;
       }
+      // 仅为创建群聊使用
+      item.select = false;
     }
     const res = pushFormat(conf.Structor.获取用户好友列表, friends);
     return res;
@@ -271,6 +278,7 @@ export class UserController {
   static async operateFriendApply(args: any, _uid: number, ctx: MySocket) {
     const { autoid = 0, from = 0, is_agree = false } = args;
     const userRepo = getRepository(User);
+    const friendRepo = getRepository(Friend);
     // 获取连接
     const connection = getConnection();
     // 创建新的 queryrunner 
@@ -292,21 +300,20 @@ export class UserController {
           .andWhere(`state = 0`)
           .execute();
         // 加好友，双向存储
-        const user_1 = await userRepo.findOne({ where: { uid: from }, relations: ['metadata'] });
-        const user_2 = await userRepo.findOne({ where: { uid: _uid }, relations: ['metadata'] });
+        const user_1 = await userRepo.findOne({ where: { uid: from }, relations: ['metadata', 'f_id'] });
+        const user_2 = await userRepo.findOne({ where: { uid: _uid }, relations: ['metadata', 'f_id'] });
         if (user_1 && user_2) {
-          if (user_1.f_id instanceof Array) {
-            user_1.f_id.push(user_2);
-          } else {
-            user_1.f_id = [user_2];
-          }
-          if (user_2.f_id instanceof Array) {
-            user_2.f_id.push(user_1);
-          } else {
-            user_2.f_id = [user_1];
-          }
-          userRepo.save(user_1);
-          userRepo.save(user_2);
+          const friend_1 = new Friend();
+          const friend_2 = new Friend();
+          
+          friend_1.uid = user_1;
+          friend_1.fid = user_2;
+          friend_2.uid = user_2;
+          friend_2.fid = user_1;
+
+          await friendRepo.save(friend_1);
+          await friendRepo.save(friend_2);
+
           // 创建一对一聊天室
           const room = new ChatRoom();
           room.users = [user_1, user_2];
@@ -349,7 +356,7 @@ export class UserController {
   static async delFriend(args: any, _uid: number, ctx: MySocket) {
     const { fid = 0 } = args;
     const userRepo = getRepository(User);
-    const roomRepo = getRepository(ChatRoom);
+    const friendRepo = getRepository(Friend);
     // 获取连接
     const connection = getConnection();
     // 创建新的 queryrunner 
@@ -362,15 +369,12 @@ export class UserController {
     try {
       const user_1 = await userRepo.findOne({ where: { uid: fid }, relations: ['f_id'] });
       const user_2 = await userRepo.findOne({ where: { uid: _uid }, relations: ['f_id'] });
-      if (user_1 && user_1.f_id.length > 0) {
-        user_1.f_id = user_1.f_id.filter((item) => item.uid !== user_2?.uid);
-      }
-      if (user_2 && user_2.f_id.length) {
-        user_2.f_id = user_2.f_id.filter((item) => item.uid !== user_1?.uid);
-      }
+
+      const friend_1 = await friendRepo.findOne({ where: { uid: user_1, fid: user_2 } });
+      const friend_2 = await friendRepo.findOne({ where: { uid: user_2, fid: user_1 } });
       // 双向删除
-      await queryRunner.manager.save(user_1);
-      await queryRunner.manager.save(user_2);
+      await queryRunner.manager.remove(friend_1);
+      await queryRunner.manager.remove(friend_2);
       // 删除私聊的聊天室
       const room = await RoomController.getRoomByUids({ fid }, _uid, ctx);
       if (room) {
@@ -385,6 +389,5 @@ export class UserController {
       await queryRunner.release();
       return pushFormat(conf.Structor.操作失败, { msg: '删除失败' });
     }
-
   }
 }

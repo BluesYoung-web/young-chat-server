@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-04-08 10:12:17
- * @LastEditTime: 2021-06-26 16:26:03
+ * @LastEditTime: 2021-06-30 11:22:19
  * @Description: 用户实体(表)
  */
 import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, JoinTable, ManyToMany, OneToMany } from 'typeorm';
@@ -11,10 +11,12 @@ import { Likes } from './Likes';
 import { Comments } from './Comments';
 import { FriendApply } from './FriendApply';
 import { ChatRoom } from './ChatRoom';
+import { Friend } from './Friend';
 
 @Entity()
 export class User {
   @PrimaryGeneratedColumn()
+  @OneToMany(() => Friend, friend => friend.uid)
   uid: number;
 
   @Column()
@@ -23,9 +25,8 @@ export class User {
   @Column()
   passwd: string;
 
-  @ManyToMany(() => User, user => user.f_id)
-  @JoinTable()
-  f_id: User[];
+  @OneToMany(() => Friend, friend => friend.fid)
+  f_id: Friend[];
 
   @OneToMany(() => Circle, circle => circle.user)
   circles: Circle[];
