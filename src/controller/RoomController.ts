@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-06-28 16:07:43
- * @LastEditTime: 2021-06-29 10:24:50
+ * @LastEditTime: 2021-06-30 14:26:57
  * @Description: 处理聊天室相关的操作
  */
 import { ChatRoom } from '../entity/ChatRoom';
@@ -11,7 +11,7 @@ import { pushFormat } from './BaseController';
 import conf from '../../conf';
 import { MySocket } from '../model/socket';
 import { RoomMsg, MsgType } from './../@types/room-msg';
-import { getRepository } from 'typeorm';
+import { getRepository, Not } from 'typeorm';
 
 export class RoomController {
   /**
@@ -73,6 +73,15 @@ export class RoomController {
         user && room.users.push(user);
       }
       const savedRoom = await roomRepo.save(room);
+      const msg: RoomMsg = {
+        autoid: savedRoom.autoid,
+        msg_type: MsgType.系统消息,
+        content: '群聊创建成功，快来聊天吧',
+        send_time: Date.now(),
+        owner: _uid,
+        extra: savedRoom
+      };
+      ctx.pushMsg([...uids, _uid], pushFormat(conf.Structor.推送聊天室消息, msg));
       res = pushFormat(conf.Structor.创建聊天室, savedRoom);
     }
     return res;
@@ -90,7 +99,6 @@ export class RoomController {
     const room = await RoomController.getUsersByAutoid(autoid);
     const users = room?.users?.map((user) => user.uid).filter((uid) => +uid !== +_uid) ?? [];
     const sender = room?.users.find((user) => +user.uid === +_uid);
-
     let msg: RoomMsg;
     if (room?.owner === 0) {
       const [user_1, user_2] = room.users;
@@ -128,5 +136,24 @@ export class RoomController {
     
     ctx.pushMsg(users, pushFormat(conf.Structor.推送聊天室消息, msg));
     return pushFormat(conf.Structor.推送聊天室消息, msg);
+  }
+  /**
+   * 获取群聊列表
+   */
+  static async getRoomList(args: any, _uid: number, ctx: MySocket) {
+    const roomRepo = getRepository(ChatRoom);
+    const rooms = await roomRepo.createQueryBuilder('room')
+      .leftJoinAndSelect('room.users', 'user')
+      .select('room.autoid', 'autoid')
+      .addSelect('room.name', 'name')
+      .addSelect('room.cover', 'cover')
+      .addSelect('room.owner', 'owner')
+      .where(`room.owner != 0`)
+      .andWhere(`user.uid = ${_uid}`)
+      .groupBy('room.autoid')
+      .getRawMany();
+
+    const res = pushFormat(conf.Structor.获取我的群聊列表, rooms);
+    return res;
   }
 }
