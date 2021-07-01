@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-06-28 16:07:43
- * @LastEditTime: 2021-06-30 14:26:57
+ * @LastEditTime: 2021-07-01 17:33:28
  * @Description: 处理聊天室相关的操作
  */
 import { ChatRoom } from '../entity/ChatRoom';
@@ -155,5 +155,39 @@ export class RoomController {
 
     const res = pushFormat(conf.Structor.获取我的群聊列表, rooms);
     return res;
+  }
+  /**
+   * 获取群聊(聊天室)详情
+   */
+  static async getRoomDetail(args: any, _uid: any, ctx: MySocket) {
+    const { room_id = 0 } = args;
+    const res = await RoomController.getUsersByAutoid(room_id);
+    return pushFormat(conf.Structor.获取聊天室详情, res);
+  }
+  /**
+   * 修改群聊头像 | 名称
+   */
+  static async modRoomInfo(args: any, _uid: number, ctx: MySocket) {
+    const { cover = '', name = '', room_id = 0 } = args;
+    const roomRepo = getRepository(ChatRoom);
+    const room = await roomRepo.findOne({
+      where: { autoid: room_id },
+      relations: ['users', 'users.metadata']
+    });
+    if (room) {
+      cover && (room.cover = cover);
+      name && (room.name = name);
+      let res:string;
+      try {
+        const newRoom = await roomRepo.save(room);
+        res = pushFormat(conf.Structor.修改聊天室信息, newRoom);
+      } catch(e) {
+        console.error(e);
+        res = pushFormat(conf.Structor.操作失败, { msg: '修改失败' })
+      }
+      return res;
+    } else {
+      return pushFormat(conf.Structor.操作失败, { msg: '聊天室不存在' });
+    }
   }
 }
