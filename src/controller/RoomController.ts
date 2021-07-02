@@ -1,7 +1,7 @@
 /*
  * @Author: zhangyang
  * @Date: 2021-06-28 16:07:43
- * @LastEditTime: 2021-07-01 17:33:28
+ * @LastEditTime: 2021-07-02 16:15:11
  * @Description: 处理聊天室相关的操作
  */
 import { ChatRoom } from '../entity/ChatRoom';
@@ -188,6 +188,32 @@ export class RoomController {
       return res;
     } else {
       return pushFormat(conf.Structor.操作失败, { msg: '聊天室不存在' });
+    }
+  }
+  /**
+   * 退出聊天室，群主退出直接解散
+   */
+  static async quitRoom(args: any, _uid: number, ctx: MySocket) {
+    const { room_id = 0 } = args;
+    const roomRepo = getRepository(ChatRoom);
+
+    const room = await roomRepo.findOne({
+      where: { autoid: room_id },
+      relations: ['users']
+    });
+
+    if (room) {
+      if (room.owner === +_uid) {
+        // 群主退群，直接解散
+        await roomRepo.remove(room);
+        return pushFormat(conf.Structor.退出聊天室, { msg: '聊天室已解散' }, conf.Structor.操作成功);
+      } else {
+        room.users = room.users.filter((user) => +user.uid !== +_uid);
+        await roomRepo.save(room);
+        return pushFormat(conf.Structor.退出聊天室, { msg: '已退出聊天室' }, conf.Structor.操作成功);
+      }
+    } else {
+      return pushFormat(conf.Structor.退出聊天室, { msg: '聊天室不存在' }, conf.Structor.操作失败);
     }
   }
 }
